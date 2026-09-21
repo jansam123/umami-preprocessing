@@ -126,6 +126,15 @@ def parse_args(args: Any) -> argparse.Namespace:
         help="Split containers into components",
     )
     parser.add_argument(
+        "--create-meta",
+        action="store_true",
+        default=False,
+        help=(
+            "Create the organised-components.yaml metadata file from already-split containers. "
+            "Use this after all per-container --split-components jobs have finished."
+        ),
+    )
+    parser.add_argument(
         "--reweight", "--rw", action="store_true", default=False, help="Run the reweighting stage"
     )
     parser.add_argument(
@@ -178,6 +187,7 @@ def parse_args(args: Any) -> argparse.Namespace:
         "files",
         "grid",
         "split_components",
+        "create_meta",
         "reweight",
         "rw_merge",
         "rw_merge_idx",
@@ -214,9 +224,16 @@ def run_pp(args: argparse.Namespace) -> None:
             args.files,
             "." if args.grid else None,  # Use current directory if not on grid
         )
-        # If we aren't running on the grid, we create the metadata after splitting
-        if not args.grid:
+        # Create metadata only when NOT running on the grid AND NOT splitting a single
+        # container (i.e. all containers are processed in this one invocation).
+        # When containers are submitted as separate jobs (--container is set), metadata
+        # must be created manually after all jobs finish to get a complete picture.
+        if not args.grid and args.container is None:
             split.create_meta_data()
+    if args.create_meta:
+        log.info("Creating organised-components metadata...")
+        split = SplitContainers(args.config)
+        split.create_meta_data()
     if args.reweight:
         log.info("Running reweighting...")
         reweight = Reweight(config)
@@ -232,10 +249,13 @@ def run_pp(args: argparse.Namespace) -> None:
             )
 
         if args.split == "train":
-            create_histograms(
-                config=config,
-                component_to_run=args.component,
-            )
+            if config.sampl_cfg.method in (None, "none"):
+                log.info("Skipping histogram prep: resampling method is 'none'.")
+            else:
+                create_histograms(
+                    config=config,
+                    component_to_run=args.component,
+                )
 
     # run the resampling
     if args.resample:

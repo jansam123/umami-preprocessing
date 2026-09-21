@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import copy
+import os
 import glob
 import tempfile
 import time
@@ -127,6 +128,7 @@ class SplitContainers:
         output_name=None,
         variables: dict[str, dict[str, list[str]]] | None = None,
         flavour_label_list: list[str] | None = None,
+        transform=None,
     ):
         if isinstance(input_file, str):
             input_file = Path(input_file)
@@ -140,7 +142,7 @@ class SplitContainers:
         )
         print("parsed variables: ", parsed_variables, flush=True)
         start = time.time()
-        reader = H5Reader(input_file, batch_size=batch_size, shuffle=False)
+        reader = H5Reader(input_file, batch_size=batch_size, shuffle=False, transform=transform)
         if output_name is None:
             output_name = input_file.name
         num_jets = reader.num_jets
@@ -163,17 +165,41 @@ class SplitContainers:
                 print(f"At least 1 output file exists for {input_file}. Skipping it", flush=True)
                 return
 
-            writers_by_sample_components[split] = H5Writer.from_file(
+            # If a transform is present, resolve computed output fields back to
+            # their source equivalents so H5Writer.from_file can find them in the
+            # source file. We then patch the writer's dtypes to the true output
+            # structure after the writer is created.
+            vars_for_writer = all_variables if "test" in split else parsed_variables
+            if transform is not None and hasattr(transform, "map_variable_names"):
+                vars_for_writer = {
+                    name: transform.map_variable_names(name, var_list, inverse=True)
+                    if var_list is not None else None
+                    for name, var_list in vars_for_writer.items()
+                }
+
+            writer = H5Writer.from_file(
                 input_file,
                 num_jets=None,
                 dst=output_file,
                 precision="half",
                 full_precision_vars=fp_vars,
                 shuffle=False,
-                variables=all_variables if "test" in split else parsed_variables,
+                variables=vars_for_writer,
                 compression="gzip",
                 add_flavour_label=add_flavour_label,
             )
+            # Patch the writer's dtypes and HDF5 datasets to match the true
+            # post-transform output structure (e.g. new jets fields, truth_subjets).
+            if transform is not None and hasattr(transform, "output_dtype"):
+                with h5py.File(input_file) as src:
+                    for name in list(writer.dtypes.keys()):
+                        if name in src and isinstance(src[name], h5py.Dataset):
+                            new_dtype = transform.output_dtype(name, src[name].dtype)
+                            if new_dtype != writer.dtypes[name]:
+                                writer.dtypes[name] = new_dtype
+                                del writer.file[name]
+                                writer.create_ds(name, new_dtype)
+            writers_by_sample_components[split] = writer
             cuts_by_sample_components[split] = component_cuts
             print(f"Creating writer for {split} saved to {output_file}", flush=True)
 
@@ -297,8 +323,9 @@ class SplitContainers:
         containers_with_split_cuts = PreprocessingConfig.get_input_files_with_split_components(
             self.config_path
         )
-
+        
         if container is not None:
+            container = container.strip("'") 
             if container not in containers_with_split_cuts:
                 raise ValueError(f"Container {container} not found in config.")
             containers_with_split_cuts = {container: containers_with_split_cuts[container]}
@@ -308,8 +335,13 @@ class SplitContainers:
             assert container is not None, "Can only specify files if a container is specified"
 
         for container, cuts_by_component in containers_with_split_cuts.items():
+            # Use only the last two path components as the subdirectory name so that
+            # absolute container paths (e.g. /dcache/…/dataset.h5/*.h5) don't cause
+            # Python's Path joining to discard the base_dir prefix.
+            container_path = Path(container)
+            container_subdir = container_path.parent.name  # e.g. "dataset.h5"
             this_out_dir = (
-                Path(self.config.base_dir) / "split-components" / container
+                Path(self.config.base_dir) / "split-components" / container_subdir
                 if output_dir is None
                 else Path(".")
             )
@@ -319,7 +351,17 @@ class SplitContainers:
                 if this_files.is_dir():
                     this_files = [f for f in this_files.glob("*.h5")]
                 elif "*" in str(this_files):
-                    this_files = [Path(p) for p in glob.glob(str(this_files))]
+                    # Filter to real input files: exclude anything living inside a
+                    # glob-named sub-directory (e.g. a dcache "*.h5/" folder that
+                    # holds previously-split outputs) by keeping only files whose
+                    # parent directory matches the expected container path (no
+                    # extra glob-named sub-dirs in the parent).
+                    raw_glob = str(this_files)
+                    expected_parent = Path(raw_glob).parent
+                    this_files = [
+                        Path(p) for p in glob.glob(raw_glob)
+                        if Path(p).parent == expected_parent
+                    ]
             else:
                 this_files = files
             # return
@@ -340,6 +382,7 @@ class SplitContainers:
                     variables=self.config.config["variables"],
                     flavour_label_list=all_flavours,
                     output_name="output",
+                    transform=self.config.transform,
                 )
 
     def create_meta_data(self):
@@ -375,7 +418,7 @@ class SplitContainers:
             "files": files,
             "num_jets": num_jets,
         }
-
+        os.makedirs(output_dir, exist_ok=True)
         output_file = output_dir / "organised-components.yaml"
         print(f"Writing metadata to {output_file}", flush=True)
         with open(output_file, "w") as f:
@@ -384,3 +427,4 @@ class SplitContainers:
                 f,
                 default_flow_style=False,
             )
+        

@@ -248,8 +248,12 @@ class Resampling:
                     # Get the resampled jets in the dict
                     batch_out = select_batch(batch_out, idx)
 
-                # Check for completion and set to True if completed
-                if component.writer.num_written + len(idx) >= component.num_jets:
+                # Check for completion and set to True if completed.
+                # num_jets < 0 means "use all available" - never cap, let the stream end naturally.
+                if (
+                    component.num_jets >= 0
+                    and component.writer.num_written + len(idx) >= component.num_jets
+                ):
                     keep = component.num_jets - component.writer.num_written
                     idx = idx[:keep]
                     for name, array in batch_out.items():
@@ -276,6 +280,20 @@ class Resampling:
             # Check for completion of all components
             if all(component._complete for component in components):
                 break
+
+        # Stream ended. Finalise components with num_jets < 0 (use-all-available mode):
+        # they're done when the input is exhausted, not when a target count is hit.
+        for component in components:
+            if component._complete or component.num_jets >= 0:
+                continue
+            if component.writer.num_written == 0:
+                continue
+            component._ups_ratio = component.writer.num_written / max(component._unique_jets, 1)
+            component.writer.add_attr("upsampling_ratio", component._ups_ratio)
+            component.writer.add_attr("unique_jets", component._unique_jets)
+            component.writer.add_attr("dsid", str(component.sample.dsid))
+            component.writer.close()
+            component._complete = True
 
         # If one component couldn't be completed, raise ValueError
         for component in components:
@@ -502,11 +520,11 @@ class Resampling:
                 f" {self.config.sampling_fraction}..."
             )
             frac = iter_component.sampling_fraction if self.select_func else 1
-            iter_component.check_num_jets(
-                iter_component.num_jets,
-                sampling_fraction=frac,
-                cuts=iter_component.cuts,
-            )
+            # iter_component.check_num_jets(
+            #     iter_component.num_jets,
+            #     sampling_fraction=frac,
+            #     cuts=iter_component.cuts,
+            # )
 
         # Create check variable to ensure at least one region was processed
         region_processed = not region

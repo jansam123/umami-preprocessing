@@ -1,0 +1,21 @@
+executable = /project/atlas/users/sjankovy/UPP/umami-preprocessing/condor/physical_v2/run_qcd_dataset.sh
+arguments  = $(cfg)
+
+output = /project/atlas/users/sjankovy/UPP/umami-preprocessing/condor/physical_v2/out/testds_$(Cluster).$(Process).log
+error  = /project/atlas/users/sjankovy/UPP/umami-preprocessing/condor/physical_v2/err/testds_$(Cluster).$(Process).log
+log    = /project/atlas/users/sjankovy/UPP/umami-preprocessing/condor/physical_v2/logs/testds_$(Cluster).log
+
+stream_output = True
+stream_error  = True
+
+accounting_group = atlas
+
+request_cpus   = 2
+request_memory = 64GB
+
++JobCategory = "medium"
++UseOS       = "el9"
+
+JobBatchName = "UPP_qcd_40M"
+
+queue cfg from /project/atlas/users/sjankovy/UPP/umami-preprocessing/condor/physical_v2/params2.txt

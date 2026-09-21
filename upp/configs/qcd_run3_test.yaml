@@ -1,0 +1,76 @@
+variables: !include xtautau-regr-variables.yaml
+
+# Kinematic cuts go under `common` so they apply on EVERY split, incl. test.
+# (On the test split UPP empties the per-region cuts, keeping only global_cuts;
+#  see components.py:344 / preprocessing_config.py:260. The `*_split` blocks
+#  define the held-out test selection = eventNumber % 10 == 9.)
+global_cuts:
+  common:
+    - [pt, ">", 100_000]
+    - [pt, "<", 1_300_000]
+    - [mass, ">", 20_000]
+    - [mass, "<", 250_000]
+    - [abs_eta, ">", 0]
+    - [abs_eta, "<", 2]
+    - [n_TruthSubjets, ">", 0]
+  train:
+    - [eventNumber, "%10<=", 7]
+  val:
+    - [eventNumber, "%10==", 8]
+  test:
+    - [eventNumber, "%10==", 9]
+
+# Run 3 QCD dijet (DSID 801168-801172, JZ3-JZ7). Held-out test split, high-stat:
+# equal_jets=false to take all available (a balanced sample would cap at ~3.9M).
+# ~47M test jets available; capped at 10M below. Natural JZ composition ->
+# reweight with mcEventWeight downstream.
+qcd: &qcd
+  name: qcd
+  equal_jets: false
+  pattern:
+    - /dcache/atlas/sjankovy/mass_regress/mass_regress_v3/user.sjankovy.801168.e8514_s4159_r15224_p7020.tdd.FatJets_new.25_2_85.26-06-22_Htt_regress_v3p4_output.h5/*.h5
+    - /dcache/atlas/sjankovy/mass_regress/mass_regress_v3/user.sjankovy.801169.e8514_s4159_r15224_p7020.tdd.FatJets_new.25_2_85.26-06-22_Htt_regress_v3p4_output.h5/*.h5
+    - /dcache/atlas/sjankovy/mass_regress/mass_regress_v3/user.sjankovy.801170.e8514_s4159_r15224_p7020.tdd.FatJets_new.25_2_85.26-06-22_Htt_regress_v3p4_output.h5/*.h5
+    - /dcache/atlas/sjankovy/mass_regress/mass_regress_v3/user.sjankovy.801171.e8514_s4159_r15224_p7020.tdd.FatJets_new.25_2_85.26-06-22_Htt_regress_v3p4_output.h5/*.h5
+    - /dcache/atlas/sjankovy/mass_regress/mass_regress_v3/user.sjankovy.801172.e8514_s4159_r15224_p7020.tdd.FatJets_new.25_2_85.26-06-22_Htt_regress_v3p4_output.h5/*.h5
+
+# Region cuts are emptied on the test split; kinematic selection lives in
+# global_cuts.common (above). Kept here for non-test parity / clarity.
+inclusive: &inclusive
+  name: inclusive
+  cuts:
+    - [pt, ">", 100_000]
+    - [pt, "<", 1_300_000]
+    - [mass, ">", 20_000]
+    - [mass, "<", 250_000]
+    - [abs_eta, ">", 0]
+    - [abs_eta, "<", 2]
+    - [n_TruthSubjets, ">", 0]
+
+components:
+  - region:
+      <<: *inclusive
+    sample:
+      <<: *qcd
+    flavours: [qcd]
+    num_jets: 40_000_000
+    num_jets_test: 40_000_000  # high-stat test set
+
+resampling:
+  method: none
+  target: qcd
+  variables: {}
+
+transform: {}
+
+global:
+  batch_size: 100_000
+  num_jets_estimate: 1_000_000
+  # Per-config base_dir so the intermediate components/ files don't collide with
+  # qcd_run2 (both share region=inclusive, flavour=qcd -> same component name).
+  # out_dir is absolute so the final merged file still lands in physical_v3/.
+  base_dir: /data/atlas/users/sjankovy/mass_regress/physical_v3/qcd_run3_work
+  ntuple_dir: /dcache/atlas/sjankovy/mass_regress/mass_regress_v3
+  out_dir: /data/atlas/users/sjankovy/mass_regress/physical_v3
+  out_fname: qcd_run3_physical.h5
+  merge_test_samples: True

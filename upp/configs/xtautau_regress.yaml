@@ -1,0 +1,80 @@
+variables: !include xtautau-regr-variables.yaml
+# Inlined (not !include splits/simple-split.yaml) so the `common` block can carry
+# the n_TruthSubjets > 0 cut on EVERY split, incl. test (region cuts are emptied
+# on the test split; see components.py:344 / preprocessing_config.py:260).
+global_cuts:
+  common:
+    - [n_TruthSubjets, ">", 0]
+  train:
+    - [eventNumber, "%10<=", 7]
+  val:
+    - [eventNumber, "%10==", 8]
+  test:
+    - [eventNumber, "%10==", 9]
+
+htautauhad: &htautauhad
+  name: htautauhad
+  pattern:
+  - /dcache/atlas/sjankovy/mass_regress/mass_regress_v3/user.sjankovy.802168.e8558_s4159_r15530_p7020.tdd.FatJets_new.25_2_85.26-06-22_Htt_regress_v3p4_output.h5/*.h5
+  - /dcache/atlas/sjankovy/mass_regress/mass_regress_v3/user.sjankovy.802168.e8558_s3797_r13144_p7020.tdd.FatJets_new.25_2_85.26-06-22_Htt_regress_v3p4_output.h5/*.h5
+qcd: &qcd
+  name: qcd
+  equal_jets: true
+  pattern:
+    - /dcache/atlas/sjankovy/mass_regress/mass_regress_v3/user.sjankovy.364703.e7142_s3681_r13144_p7020.tdd.FatJets_new.25_2_85.26-06-22_Htt_regress_v3p4_output.h5/*.h5
+    - /dcache/atlas/sjankovy/mass_regress/mass_regress_v3/user.sjankovy.364704.e7142_s3681_r13144_p7020.tdd.FatJets_new.25_2_85.26-06-22_Htt_regress_v3p4_output.h5/*.h5
+    - /dcache/atlas/sjankovy/mass_regress/mass_regress_v3/user.sjankovy.364705.e7142_s3681_r13144_p7020.tdd.FatJets_new.25_2_85.26-06-22_Htt_regress_v3p4_output.h5/*.h5
+    - /dcache/atlas/sjankovy/mass_regress/mass_regress_v3/user.sjankovy.364706.e7142_s3681_r13144_p7020.tdd.FatJets_new.25_2_85.26-06-22_Htt_regress_v3p4_output.h5/*.h5
+    - /dcache/atlas/sjankovy/mass_regress/mass_regress_v3/user.sjankovy.364707.e7142_s3681_r13144_p7020.tdd.FatJets_new.25_2_85.26-06-22_Htt_regress_v3p4_output.h5/*.h5
+    - /dcache/atlas/sjankovy/mass_regress/mass_regress_v3/user.sjankovy.801168.e8514_s4159_r15224_p7020.tdd.FatJets_new.25_2_85.26-06-22_Htt_regress_v3p4_output.h5/*.h5
+    - /dcache/atlas/sjankovy/mass_regress/mass_regress_v3/user.sjankovy.801169.e8514_s4159_r15224_p7020.tdd.FatJets_new.25_2_85.26-06-22_Htt_regress_v3p4_output.h5/*.h5
+    - /dcache/atlas/sjankovy/mass_regress/mass_regress_v3/user.sjankovy.801170.e8514_s4159_r15224_p7020.tdd.FatJets_new.25_2_85.26-06-22_Htt_regress_v3p4_output.h5/*.h5
+    - /dcache/atlas/sjankovy/mass_regress/mass_regress_v3/user.sjankovy.801171.e8514_s4159_r15224_p7020.tdd.FatJets_new.25_2_85.26-06-22_Htt_regress_v3p4_output.h5/*.h5
+    - /dcache/atlas/sjankovy/mass_regress/mass_regress_v3/user.sjankovy.801172.e8514_s4159_r15224_p7020.tdd.FatJets_new.25_2_85.26-06-22_Htt_regress_v3p4_output.h5/*.h5
+
+
+inclusive: &inclusive
+  name: inclusive
+  cuts: []
+
+components:
+  - region:
+      <<: *inclusive
+    sample:
+      <<: *htautauhad
+    flavours: [htautauhad]
+    num_jets: -1
+
+  - region:
+      <<: *inclusive
+    sample:
+      <<: *qcd
+    flavours: [qcd]
+    # Cap qcd: with countup + num_jets:-1 the qcd component would take the entire
+    # v3 qcd input (~hundreds of M jets, ~1TB+). Cap to ~25M to balance the ~22M
+    # htautauhad target and keep disk bounded.
+    num_jets: 25_000_000
+
+resampling:
+  target: htautauhad
+  method: countup
+  sampling_fraction: 1
+  variables:
+    pt:
+      bins: [[100_000, 1_300_000, 50]]
+    abs_eta:
+      bins: [[0, 2, 20]]
+    mass:
+      bins: [[20_000, 250_000, 50]]
+
+transform: {}
+
+# note: sensible defaults are defined in the PreprocessingConfig constructor
+global:
+  batch_size: 1_000_000
+  # num_jets_estimate: 1_000
+  # num_jets_estimate_available: 1_000
+  num_jets_estimate: 10_000_000
+  base_dir: /data/atlas/users/sjankovy/mass_regress/training_v4
+  ntuple_dir: /dcache/atlas/sjankovy/mass_regress/mass_regress_v3
+  merge_test_samples: True

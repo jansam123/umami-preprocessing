@@ -1,0 +1,21 @@
+variables: !include xtautau-regr-variables.yaml
+
+transform: {}  # enables SubjetTransform with default args
+
+# ttbar all-hadronic (DSID 410471) physical testing dataset (all events)
+input_files:
+  - /dcache/atlas/sjankovy/mass_regress/mass_regress_v3/user.sjankovy.410471.e6337_s3681_r13144_p7020.tdd.FatJets_new.25_2_85.26-06-22_Htt_regress_v3p4_output.h5/*.h5
+
+output_file: /data/atlas/users/sjankovy/mass_regress/physical_v3/ttbar_physical_test.h5
+
+cuts:
+  - [pt,      ">", 100_000]
+  - [pt,      "<", 1_300_000]
+  - [mass,    ">", 20_000]
+  - [mass,    "<", 250_000]
+  - [abs_eta, ">", 0]
+  - [abs_eta, "<", 2]
+  - [n_TruthSubjets, ">", 0]
+
+batch_size: 100000
+jets_name: jets

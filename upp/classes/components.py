@@ -106,7 +106,30 @@ class Component:
             Name of the group in which the jets are stored, by default "jets"
         """
         dtypes = self.reader.dtypes(variables.combined())
-        shapes = self.reader.shapes(self.num_jets, variables.keys())
+        # num_jets < 0 means "use all available" - estimate a shape so h5py gets a
+        # non-negative extent. H5Writer resizes on write, so an over/under-estimate
+        # is fine.
+        if self.num_jets >= 0:
+            shape_n = self.num_jets
+        else:
+            num_est = (
+                None if self.num_jets_estimate_available <= 0
+                else self.num_jets_estimate_available
+            )
+            shape_n = self.reader.estimate_available_jets(self.cuts, num_est)
+        shapes = self.reader.shapes(shape_n, variables.keys())
+
+        # If the transform defines output_dtype, use it to get the true post-transform
+        # dtypes (e.g. SubjetTransform fully reconstructs truth_subjets with new fields
+        # that map_dtype cannot handle via astype).
+        transform = self.reader.transform
+        if transform is not None and hasattr(transform, "output_dtype"):
+            import h5py
+            with h5py.File(self.reader.files[0]) as f:
+                for name in list(dtypes.keys()):
+                    if name in f and isinstance(f[name], h5py.Dataset):
+                        dtypes[name] = transform.output_dtype(name, f[name].dtype)
+
         self.writer = H5Writer(self.out_path, dtypes, shapes, jets_name=jets_name)
         log.debug(f"Setup component writer at: {self.out_path}")
 

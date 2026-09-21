@@ -23,6 +23,7 @@ from upp.classes.resampling_config import ResamplingConfig
 from upp.classes.reweight_config import ReweightConfig
 from upp.classes.variable_config import VariableConfig
 from upp.utils.tools import path_append
+from upp.utils.subjet_transforms import SubjetTransform
 
 # support inclusion of yaml files in the config dir
 YamlIncludeConstructor.add_to_loader_class(
@@ -206,9 +207,8 @@ class PreprocessingConfig:
             self.variables = self.variables.add_jet_vars(
                 list(self.config["resampling"]["variables"].keys()), "labels"
             )
-        self.transform = (
-            Transform(**self.config["transform"]) if "transform" in self.config else None
-        )
+        _transform_cfg = self.config.get("transform")
+        self.transform = SubjetTransform(**_transform_cfg) if _transform_cfg is not None else None
 
         self.rw_config = (
             ReweightConfig(

@@ -505,24 +505,35 @@ class Merging:
         """
         # Prepare every Component's reader
         for component in components:
-            batch_size = self.batch_size * component.num_jets // components.num_jets + 1
             component.setup_reader(
-                batch_size,
+                self.batch_size,
                 fname=component.out_path,
                 jets_name=self.jets_name,
             )
+            component.complete = False
+
+        # Resolve actual jet counts from the preprocessed component files.
+        # component.num_jets may be -1 (meaning "use all") when the config sets
+        # num_jets: -1, so we use the reader's physical row count instead.
+        actual_jets_list = [c.reader.num_jets for c in components]
+        actual_total_jets = sum(actual_jets_list)
+
+        for component, actual_jets in zip(components, actual_jets_list):
+            # Scale per-component batch size proportionally to its share of total jets
+            comp_batch = self.batch_size * actual_jets // actual_total_jets + 1
+            for r in component.reader.readers:
+                r.batch_size = comp_batch
             component.stream = component.reader.stream(
                 self.variables.combined(),
-                component.reader.num_jets,
+                actual_jets,
             )
-            component.complete = False
 
         # Cache dtype / base shapes once (re-used for every new file)
         self.dtypes = components[0].reader.dtypes(self.variables.combined())
-        self.base_shapes = components[0].reader.shapes(components.num_jets, self.variables.keys())
+        self.base_shapes = components[0].reader.shapes(actual_total_jets, self.variables.keys())
 
         # Bookkeeping shared with write_chunk
-        self.total_jets = components.num_jets
+        self.total_jets = actual_total_jets
         self.jets_written = 0
         self._file_idx = 0
         self._sample = sample
@@ -567,8 +578,8 @@ class Merging:
         # Main merge loop with progress
         with ProgressBar() as progress:
             task = progress.add_task(
-                f"[green]Merging {components.num_jets:,} jets...",
-                total=components.num_jets,
+                f"[green]Merging {self.total_jets:,} jets...",
+                total=self.total_jets,
             )
             if self.jets_written:
                 progress.update(task, advance=self.jets_written)
@@ -582,7 +593,7 @@ class Merging:
         # Close Writer
         self.writer.close()
         label = "merged" if sample is None else sample
-        log.info(f"[bold green]Finished merging {components.num_jets:,} {label} jets!")
+        log.info(f"[bold green]Finished merging {self.total_jets:,} {label} jets!")
 
     def run(self):
         """Run merging of the components."""

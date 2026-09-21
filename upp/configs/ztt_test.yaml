@@ -1,0 +1,20 @@
+variables: !include xtautau-regr-variables.yaml
+
+transform: {}  # enables SubjetTransform with default args
+
+input_files:
+  - /dcache/atlas/sjankovy/grid_downloads/user.sjankovy.603700.e8564_s3797_r13144_p7020.tdd.FatJets_new.25_2_85.26-06-01_Htt_regress_v3_output.h5/*.h5
+
+output_file: /data/atlas/users/sjankovy/mass_regress/physical_v1/hbbhtt_physical_test.h5
+
+# Same kinematic cuts as xtautau_regress_rew.yaml
+cuts:
+  - [pt,      ">", 100_000]
+  - [pt,      "<", 1_300_000]
+  - [mass,    ">", 20_000]
+  - [mass,    "<", 250_000]
+  - [abs_eta, ">", 0]
+  - [abs_eta, "<", 2]
+
+batch_size: 100000
+jets_name: jets

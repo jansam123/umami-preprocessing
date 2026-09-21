@@ -1,0 +1,85 @@
+variables: !include xtautau-regr-rew-variables.yaml
+global_cuts: !include splits/simple-split.yaml
+
+htautauhad: &htautauhad
+  name: htautauhad
+  pattern: 
+  - /dcache/atlas/sjankovy/mass_regress/mass_regress_v1/user.sjankovy.802168.e8558_s4159_r15530_p6453.tdd.FatJets_new.25_2_85.26-03-20_Htt_regress_v2_output.h5/*.h5
+  - /dcache/atlas/sjankovy/mass_regress/mass_regress_v1/user.sjankovy.802168.e8558_s3797_r13144_p6453.tdd.FatJets_new.25_2_85.26-03-20_Htt_regress_v2_output.h5/*.h5 
+qcd: &qcd
+  name: qcd
+  equal_jets: true
+  pattern:
+    - /dcache/atlas/sjankovy/mass_regress/mass_regress_v1/user.sjankovy.364703.e7142_s3681_r13144_p7020.tdd.FatJets_new.25_2_85.26-03-20_Htt_regress_v2_output.h5/*.h5
+    - /dcache/atlas/sjankovy/mass_regress/mass_regress_v1/user.sjankovy.364704.e7142_s3681_r13144_p7020.tdd.FatJets_new.25_2_85.26-03-20_Htt_regress_v2_output.h5/*.h5
+    - /dcache/atlas/sjankovy/mass_regress/mass_regress_v1/user.sjankovy.364705.e7142_s3681_r13144_p7020.tdd.FatJets_new.25_2_85.26-03-20_Htt_regress_v2_output.h5/*.h5
+    - /dcache/atlas/sjankovy/mass_regress/mass_regress_v1/user.sjankovy.364706.e7142_s3681_r13144_p7020.tdd.FatJets_new.25_2_85.26-03-20_Htt_regress_v2_output.h5/*.h5
+    - /dcache/atlas/sjankovy/mass_regress/mass_regress_v1/user.sjankovy.364707.e7142_s3681_r13144_p7020.tdd.FatJets_new.25_2_85.26-03-20_Htt_regress_v2_output.h5/*.h5
+    - /dcache/atlas/sjankovy/mass_regress/mass_regress_v1/user.sjankovy.801168.e8514_s4159_r15224_p7020.tdd.FatJets_new.25_2_85.26-03-22_Htt_regress_v2p5_output.h5/*.h5
+    - /dcache/atlas/sjankovy/mass_regress/mass_regress_v1/user.sjankovy.801169.e8514_s4159_r15224_p7020.tdd.FatJets_new.25_2_85.26-03-20_Htt_regress_v2_output.h5/*.h5
+    - /dcache/atlas/sjankovy/mass_regress/mass_regress_v1/user.sjankovy.801170.e8514_s4159_r15224_p7020.tdd.FatJets_new.25_2_85.26-03-20_Htt_regress_v2_output.h5/*.h5
+    - /dcache/atlas/sjankovy/mass_regress/mass_regress_v1/user.sjankovy.801171.e8514_s4159_r15224_p7020.tdd.FatJets_new.25_2_85.26-03-20_Htt_regress_v2_output.h5/*.h5
+    - /dcache/atlas/sjankovy/mass_regress/mass_regress_v1/user.sjankovy.801172.e8514_s4159_r15224_p7020.tdd.FatJets_new.25_2_85.26-03-20_Htt_regress_v2_output.h5/*.h5
+    
+
+inclusive: &inclusive
+  name: inclusive
+  cuts:
+    - [pt, ">", 100_000]
+    - [pt, "<", 1_300_000]
+    - [mass, ">", 20_000]
+    - [mass, "<", 250_000]
+    - [abs_eta, ">", 0]
+    - [abs_eta, "<", 2]
+
+components:
+  - region:
+      <<: *inclusive
+    sample:
+      <<: *htautauhad
+    flavours: [htautauhad]
+    num_jets: 14_500_000
+
+  - region:
+      <<: *inclusive
+    sample:
+      <<: *qcd
+    flavours: [qcd]
+    num_jets: 14_500_000
+
+# resampling:
+#   target: htautauhad
+#   method: countup
+#   sampling_fraction: 1
+#   variables:
+#     pt:
+#       bins: [[100_000, 1_300_000, 50]]
+#     abs_eta:
+#       bins: [[0, 2, 20]]
+#     mass:
+#       bins: [[50_000, 300_000, 50]]
+
+reweighting:
+  num_jets_estimate: 5_000_000
+  merge_num_proc: 4
+  reweights:
+    - group: jets
+      reweight_vars: [pt, abs_eta, mass]
+      bins: 
+        pt: [[100_000, 1_300_000, 50]]
+        abs_eta: [[0, 2, 20]]
+        mass: [[20_000, 250_000, 50]]
+      class_var: R10TruthLabel_R22v1
+      class_target: mean
+
+transform: {}
+
+# note: sensible defaults are defined in the PreprocessingConfig constructor
+global:
+  batch_size: 1_000_000
+  # num_jets_estimate: 1_000
+  # num_jets_estimate_available: 1_000
+  num_jets_estimate: 10_000_000
+  base_dir: /data/atlas/users/sjankovy/mass_regress/training_rew_v3
+  ntuple_dir: /dcache/atlas/sjankovy/mass_regress/mass_regress_v1
+  merge_test_samples: True

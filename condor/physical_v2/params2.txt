@@ -1,0 +1,2 @@
+/project/atlas/users/sjankovy/UPP/umami-preprocessing/upp/configs/qcd_run2_test.yaml
+/project/atlas/users/sjankovy/UPP/umami-preprocessing/upp/configs/qcd_run3_test.yaml

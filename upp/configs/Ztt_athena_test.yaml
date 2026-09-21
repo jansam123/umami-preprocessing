@@ -1,0 +1,20 @@
+variables: !include xtautau-regr-variables_athena.yaml
+
+transform: {}  # enables SubjetTransform with default args
+
+input_files:
+  - /project/atlas/users/sjankovy/TDD/run/athena_test.h5
+
+output_file: /data/atlas/users/sjankovy/mass_regress/athena_test_v1.h5
+
+# Same kinematic cuts as xtautau_regress_rew.yaml
+cuts:
+  - [pt,      ">", 100_000]
+  - [pt,      "<", 1_300_000]
+  - [mass,    ">", 20_000]
+  - [mass,    "<", 250_000]
+  - [abs_eta, ">", 0]
+  - [abs_eta, "<", 2]
+
+batch_size: 100000
+jets_name: jets
