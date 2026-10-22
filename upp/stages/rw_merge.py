@@ -7,13 +7,14 @@ from pathlib import Path
 
 import numpy as np
 import yaml
-from ftag.hdf5 import H5Reader, H5Writer, join_structured_arrays
+from ftag.hdf5 import H5Writer, join_structured_arrays
 from ftag.vds import create_virtual_file
 
 from upp.stages.hist import bin_global_objects
 
 # from ftag_rw.weights.rw_utils import get_sample_weights
 from upp.stages.reweight import Reweight
+from upp.utils.derived import H5Reader
 
 
 class RWMerge:

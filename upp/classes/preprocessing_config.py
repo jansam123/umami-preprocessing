@@ -24,6 +24,7 @@ from upp.classes.plotting_config import PlottingConfig
 from upp.classes.resampling_config import ResamplingConfig
 from upp.classes.reweight_config import ReweightConfig
 from upp.classes.variable_config import VariableConfig
+from upp.utils.derived import DERIVED
 from upp.utils.tools import path_append
 
 # support inclusion of yaml files in the config dir
@@ -265,6 +266,10 @@ class PreprocessingConfig:
             self.variables = self.variables.add_global_vars(
                 list(self.config["resampling"]["variables"].keys()), "labels"
             )
+        if derived := self.config.get("derived_variables"):
+            if unknown := set(derived) - set(DERIVED):
+                raise ValueError(f"Unknown derived_variables {unknown}, available: {list(DERIVED)}")
+            self.variables = self.variables.add_global_vars(derived, "labels")
         self.transform = (
             Transform(**self.config["transform"]) if "transform" in self.config else None
         )

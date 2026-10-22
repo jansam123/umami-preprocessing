@@ -7,10 +7,11 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 from ftag import Cuts, Label, Sample
-from ftag.hdf5 import H5Reader, H5Writer
+from ftag.hdf5 import H5Writer
 
 from upp.classes.region import Region
 from upp.stages.hist import Hist
+from upp.utils.derived import H5Reader
 
 if TYPE_CHECKING:  # pragma: no cover
     from upp.classes.preprocessing_config import PreprocessingConfig

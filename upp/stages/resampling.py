@@ -7,11 +7,11 @@ from typing import TYPE_CHECKING, cast
 
 import numpy as np
 import yaml
-from ftag.hdf5 import H5Reader
 from yamlinclude import YamlIncludeConstructor
 
 from upp.stages.hist import bin_global_objects
 from upp.stages.interpolation import subdivide_bins, upscale_array_regionally
+from upp.utils.derived import H5Reader
 from upp.utils.logger import ProgressBar, banner
 
 if TYPE_CHECKING:  # pragma: no cover
